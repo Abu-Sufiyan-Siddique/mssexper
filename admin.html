@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MSS Expertise — Admin Console</title>
+<style>
+  :root{--accent:#f0b90b;--ok:#0a7a0a;--warn:#b26a00;--err:#c62828;--text:#101114;--muted:#666;--bg:#f6f7fb;--card:#fff;--border:#e7e9f0}
+  *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  header{position:sticky;top:0;z-index:10;background:#0d0d0d;color:#fff;border-bottom:1px solid #151515}
+  .container{max-width:1200px;margin:0 auto;padding:0 16px}
+  .brand{display:flex;gap:10px;align-items:center;padding:12px 0}
+  .logo{font-weight:800;letter-spacing:1px;font-size:22px}
+  .spacer{flex:1}
+  .navlink{color:#9cc3ff;text-decoration:none;font-weight:600}
+  .btn{padding:9px 12px;border-radius:10px;border:1px solid #23262f;background:#0e0f12;color:#fff;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#fff;color:#111;border-color:#222}
+  .btn.danger{background:#c62828;border-color:#c62828}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  main{max-width:1200px;margin:18px auto;padding:0 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+  .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  input,select{width:100%;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:15px;outline:none}
+  .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:900px}
+  th,td{border-bottom:1px solid #eef1f6;padding:10px;font-size:14px;text-align:left;vertical-align:middle}
+  th{background:#fafafa;position:sticky;top:0}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .msg{margin-left:8px;font-size:13px}.msg.ok{color:var(--ok)}.msg.warn{color:var(--warn)}.msg.err{color:var(--err)}
+  @media (max-width:640px){ .btn, input, select{width:100%} .brand{flex-wrap:wrap} }
+</style>
+</head>
+<body>
+<header>
+  <div class="container brand">
+    <div class="logo">Admin Console</div>
+    <div class="spacer"></div>
+    <a class="navlink" href="./index.html">← Attendance</a>
+    <button id="btn-logout" class="btn secondary" type="button" style="margin-left:8px">Logout</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Login -->
+  <section class="card" id="loginPane">
+    <div style="font-weight:800;margin-bottom:8px">Admin Sign in</div>
+    <div class="grid">
+      <input id="admEmail" placeholder="Admin Email"/>
+      <input id="admPass" type="password" placeholder="Password"/>
+    </div>
+    <div style="margin-top:10px"><button id="btnLogin" class="btn">Login</button> <span id="loginMsg" class="msg"></span></div>
+  </section>
+
+  <!-- Employee Management -->
+  <section class="card" id="adminPane" style="display:none">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="font-weight:800">Employee Management</div>
+      <div class="row">
+        <input id="empSearchId" placeholder="Search by ID (e.g., E101)" style="max-width:200px">
+        <button id="empSearchBtn" class="btn secondary">Find</button>
+        <button id="empClearBtn" class="btn secondary">Clear</button>
+        <button id="empExportBtn" class="btn secondary">Export Employees CSV</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:10px">
+      <div>
+        <label>Add/Update Employee</label>
+        <div class="grid">
+          <input id="empIdNew" placeholder="Employee ID"/>
+          <input id="empNameNew" placeholder="Name"/>
+        </div>
+        <div class="grid" style="margin-top:8px">
+          <input id="empPhoneNew" placeholder="Phone Number"/>
+          <input id="empDesigNew" placeholder="Designation"/>
+        </div>
+        <div class="grid" style="margin-top:8px">
+          <select id="empStatusNew"><option>Active</option><option>Inactive</option></select>
+          <button id="btnAddEmp" class="btn">Save Employee</button>
+        </div>
+        <div id="empFormMsg" class="msg"></div>
+      </div>
+      <div>
+        <label>Office Timing (Global)</label>
+        <div class="grid">
+          <div><span style="color:#666">Start</span><input id="cfgStart" type="time"></div>
+          <div><span style="color:#666">Late After</span><input id="cfgLateAfter" type="time"></div>
+          <div><span style="color:#666">End</span><input id="cfgEnd" type="time"></div>
+          <div><span style="color:#666">Early Grace (min)</span><input id="cfgGrace" type="number" min="0" value="0"></div>
+        </div>
+        <div style="margin-top:8px"><button id="cfgSaveBtn" class="btn secondary">Save Config</button><span id="cfgMsg" class="msg"></span></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px" class="table-wrap">
+      <table id="empTable">
+        <thead>
+          <tr>
+            <th>ID</th><th>Name</th><th>Phone</th><th>Designation</th><th>Status</th><th>Device</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody><!-- rows --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <section class="card" id="dashPane" style="display:none">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="font-weight:800">Dashboard</div>
+      <div class="row">
+        <input id="dashFilterId" placeholder="Filter by ID" style="max-width:180px">
+        <button id="dashApplyFilter" class="btn secondary">Apply</button>
+        <button id="dashClearFilter" class="btn secondary">Clear</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:10px">
+      <div>
+        <label>Latest Attendance (30)</label>
+        <div class="row" style="margin-bottom:8px">
+          <button id="attPrev" class="btn secondary">Prev</button>
+          <button id="attNext" class="btn secondary">Next</button>
+        </div>
+        <div class="table-wrap">
+          <table id="attTable"><thead><tr><th>Updated</th><th>Date</th><th>Emp ID</th><th>Name</th><th>IN</th><th>OUT</th><th>Late</th><th>Early</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div>
+        <label>Leave Requests (10)</label>
+        <div class="row" style="margin-bottom:8px">
+          <button id="lvPrev" class="btn secondary">Prev</button>
+          <button id="lvNext" class="btn secondary">Next</button>
+        </div>
+        <div class="table-wrap">
+          <table id="lvTable"><thead><tr><th>Applied</th><th>Emp ID</th><th>Name</th><th>Start</th><th>End</th><th>Days</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="font-weight:800;margin-bottom:8px">Exports</div>
+      <div class="row" style="margin-bottom:8px">
+        <div>Attendance CSV — From: <input id="csvFrom" type="date"> To: <input id="csvTo" type="date"> <button id="csvBtn" class="btn secondary">Download</button></div>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <div>Leaves CSV — From: <input id="csvLvFrom" type="date"> To: <input id="csvLvTo" type="date"> ID (optional): <input id="csvLvEmp" placeholder="E101" style="max-width:120px"> <button id="csvLvBtn" class="btn secondary">Download</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="./app.js"></script>
+<script type="module">
+import { signInEmail, signOutUser, onAuth, isAdmin, getConfig, saveConfig, upsertEmployee, listEmployees, setEmployeeDevice, deactivateEmployee, downloadCSV, listAttendancePaged, listLeavesPaged, updateLeaveStatus, listAttendanceRange, listLeaves } from './app.js';
+
+const $=s=>document.querySelector(s);
+function toast(el,msg,type='ok'){ if(!el)return; el.className='msg '+(type==='ok'?'ok':type==='warn'?'warn':'err'); el.textContent=msg; }
+
+// Logout returns to Attendance
+$('#btn-logout').addEventListener('click', async ()=>{ try{ await signOutUser(); }catch(e){} window.location.href='./index.html'; });
+
+// Login
+$('#btnLogin').addEventListener('click', async ()=>{
+  const email=$('#admEmail').value.trim().toLowerCase(); const pass=$('#admPass').value.trim(); const msg=$('#loginMsg');
+  try{ await signInEmail(email,pass); const ok=await isAdmin(email); if(!ok) throw new Error('Not admin'); $('#loginPane').style.display='none'; $('#adminPane').style.display='block'; $('#dashPane').style.display='block'; await boot(); }
+  catch(e){ toast(msg, e?.message||'Login failed','err'); }
+});
+
+// Config
+async function renderConfig(){ const cfg=await getConfig(); $('#cfgStart').value=cfg.officeStart; $('#cfgLateAfter').value=cfg.lateAfter; $('#cfgEnd').value=cfg.officeEnd; $('#cfgGrace').value=String(cfg.earlyGraceMin||0); }
+$('#cfgSaveBtn').addEventListener('click', async ()=>{ await saveConfig({ officeStart:$('#cfgStart').value, lateAfter:$('#cfgLateAfter').value, officeEnd:$('#cfgEnd').value, earlyGraceMin:parseInt($('#cfgGrace').value||'0',10), weekendDow:5 }); toast($('#cfgMsg'),'Saved','ok'); });
+
+// Employees
+let EMP_ROWS=[]; let EMP_FILTER_ID='';
+function validEmpId(id){ return /^[A-Z0-9-]+$/.test(id||''); }
+async function renderEmpTable(){ const tb=$('#empTable tbody'); tb.innerHTML=''; const view=EMP_FILTER_ID? EMP_ROWS.filter(e=>e.employeeId===EMP_FILTER_ID) : EMP_ROWS; view.forEach(e=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${e.employeeId}</td><td><input class="edit" data-id="${e.employeeId}" data-field="name" value="${e.name||''}"></td><td><input class="edit" data-id="${e.employeeId}" data-field="phone" value="${e.phone||''}"></td><td><input class="edit" data-id="${e.employeeId}" data-field="designation" value="${e.designation||''}"></td><td><select class="edit" data-id="${e.employeeId}" data-field="status"><option ${e.status==='Active'?'selected':''}>Active</option><option ${e.status==='Inactive'?'selected':''}>Inactive</option></select></td><td>${e.deviceId||'<i>—</i>'}</td><td><button class="btn secondary unbind" data-id="${e.employeeId}">Unbind</button> <button class="btn danger del" data-id="${e.employeeId}">Delete</button></td>`; tb.appendChild(tr); });
+  tb.querySelectorAll('.edit').forEach(el=> el.addEventListener('change', async ()=>{ const id=el.dataset.id; const field=el.dataset.field; const val=el.value; const p={employeeId:id}; p[field]=val; await upsertEmployee(p); toast($('#empFormMsg'),'Saved','ok'); }));
+  tb.querySelectorAll('.unbind').forEach(b=> b.addEventListener('click', async ()=>{ await setEmployeeDevice(b.dataset.id,''); await loadEmployees(); }));
+  tb.querySelectorAll('.del').forEach(b=> b.addEventListener('click', async ()=>{ await deactivateEmployee(b.dataset.id); await loadEmployees(); }));
+}
+async function loadEmployees(){ EMP_ROWS = await listEmployees(); await renderEmpTable(); }
+$('#btnAddEmp').addEventListener('click', async ()=>{
+  const id=($('#empIdNew').value||'').trim().toUpperCase(); if(!validEmpId(id)) return toast($('#empFormMsg'),'Invalid ID','err');
+  const payload={ employeeId:id, name:($('#empNameNew').value||'').trim(), phone:($('#empPhoneNew').value||'').trim(), designation:($('#empDesigNew').value||'').trim(), status:($('#empStatusNew').value||'Active') };
+  await upsertEmployee(payload); $('#empIdNew').value=''; $('#empNameNew').value=''; $('#empPhoneNew').value=''; $('#empDesigNew').value=''; await loadEmployees(); toast($('#empFormMsg'),'Saved','ok');
+});
+$('#empSearchBtn').addEventListener('click', ()=>{ EMP_FILTER_ID=($('#empSearchId').value||'').trim().toUpperCase(); renderEmpTable(); });
+$('#empClearBtn').addEventListener('click', ()=>{ EMP_FILTER_ID=''; $('#empSearchId').value=''; renderEmpTable(); });
+$('#empExportBtn').addEventListener('click', ()=>{
+  const rows = EMP_FILTER_ID ? EMP_ROWS.filter(e=>e.employeeId===EMP_FILTER_ID) : EMP_ROWS;
+  downloadCSV('employees.csv', rows.map(e=>({ID:e.employeeId, Name:e.name||'', Phone:e.phone||'', Designation:e.designation||'', Status:e.status||'', Device:e.deviceId||''})));
+});
+
+// Dashboard — Attendance & Leaves (paged)
+let DASH_FILTER_ID='';
+let attCursor=null; let attCache=[];
+async function loadAtt(direction){ const res=await listAttendancePaged({ limit:30, cursor:attCursor, direction }); attCursor=res.nextCursor; attCache=res.items; renderAtt(); }
+function renderAtt(){ const tb=$('#attTable tbody'); tb.innerHTML=''; (DASH_FILTER_ID? attCache.filter(r=>r.employeeId===DASH_FILTER_ID): attCache).forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${String(r.updatedAt||'').toString().slice(0,19).replace('T',' ')}</td><td>${r.date}</td><td>${r.employeeId}</td><td>${r.name||''}</td><td>${r.in||''}</td><td>${r.out||''}</td><td>${r.isLate?'Y':'N'}</td><td>${r.isEarly?'Y':'N'}</td>`; tb.appendChild(tr); }); }
+$('#attPrev').addEventListener('click', ()=> loadAtt('prev'));
+$('#attNext').addEventListener('click', ()=> loadAtt('next'));
+
+let lvCursor=null; let lvCache=[];
+async function loadLv(direction){ const res=await listLeavesPaged({ limit:10, cursor:lvCursor, direction }); lvCursor=res.nextCursor; lvCache=res.items; renderLv(); }
+function renderLv(){ const tb=$('#lvTable tbody'); tb.innerHTML=''; (DASH_FILTER_ID? lvCache.filter(x=>x.empId===DASH_FILTER_ID): lvCache).forEach(x=>{ const days=Math.max(1, Math.floor((new Date((x.endDate||x.startDate)+'T00:00:00')-new Date(x.startDate+'T00:00:00'))/86400000)+1); const tr=document.createElement('tr'); tr.innerHTML=`<td>${String(x.appliedAt||'').toString().slice(0,19).replace('T',' ')}</td><td>${x.empId}</td><td>${x.empName||''}</td><td>${x.startDate}</td><td>${x.endDate||x.startDate}</td><td>${days}</td><td>${x.type}</td><td>${x.status}</td><td>${x.status==='Pending'?'<button class="btn secondary" data-app="'+x.id+'">Approve</button> <button class="btn secondary" data-rej="'+x.id+'">Reject</button>':''}</td>`; tb.appendChild(tr); });
+  tb.querySelectorAll('[data-app]').forEach(b=> b.addEventListener('click', async ()=>{ await updateLeaveStatus(b.dataset.app,'Approved','admin'); await loadLv(); }));
+  tb.querySelectorAll('[data-rej]').forEach(b=> b.addEventListener('click', async ()=>{ await updateLeaveStatus(b.dataset.rej,'Rejected','admin'); await loadLv(); }));
+}
+$('#lvPrev').addEventListener('click', ()=> loadLv('prev'));
+$('#lvNext').addEventListener('click', ()=> loadLv('next'));
+
+$('#dashApplyFilter').addEventListener('click', ()=>{ DASH_FILTER_ID=($('#dashFilterId').value||'').trim().toUpperCase(); renderAtt(); renderLv(); });
+$('#dashClearFilter').addEventListener('click', ()=>{ DASH_FILTER_ID=''; $('#dashFilterId').value=''; renderAtt(); renderLv(); });
+
+// CSV Export (date-wise attendance)
+$('#csvBtn').addEventListener('click', async ()=>{ const from=$('#csvFrom').value; const to=$('#csvTo').value; if(!from||!to) return toast($('#csvMsg'),'From/To required','err'); const rows=await listAttendanceRange({from,to}); downloadCSV(`attendance_${from}_to_${to}.csv`, rows.map(r=>({Date:r.date,EmployeeID:r.employeeId,Name:r.name||'',IN:r.in||'',OUT:r.out||'',Late:r.isLate?'TRUE':'FALSE',EarlyOUT:r.isEarly?'TRUE':'FALSE',UpdatedAt:String(r.updatedAt||'').toString()}))); });
+
+// CSV Export (leaves)
+$('#csvLvBtn').addEventListener('click', async ()=>{
+  const from=$('#csvLvFrom').value; const to=$('#csvLvTo').value; const emp=($('#csvLvEmp').value||'').trim().toUpperCase();
+  const rows = await listLeaves({});
+  const filtered = rows.filter(x=> (!from||x.startDate>=from) && (!to||x.endDate<=to) && (!emp || x.empId===emp));
+  downloadCSV(`leaves_${from||'all'}_${to||'all'}${emp?('_'+emp):''}.csv`, filtered.map(x=>({Applied:String(x.appliedAt||'').toString(),EmpID:x.empId,Name:x.empName||'',Start:x.startDate,End:x.endDate||x.startDate,Days:Math.max(1, Math.floor((new Date((x.endDate||x.startDate)+'T00:00:00')-new Date(x.startDate+'T00:00:00'))/86400000)+1),Type:x.type,Status:x.status,Reason:x.reason||''})));
+});
+
+async function boot(){ await renderConfig(); await loadEmployees(); await loadAtt(); await loadLv(); }
+
+onAuth(async (user)=>{ if(user && user.email && await isAdmin(user.email)){ $('#loginPane').style.display='none'; $('#adminPane').style.display='block'; $('#dashPane').style.display='block'; await boot(); } });
+</script>
+</body>
+</html>

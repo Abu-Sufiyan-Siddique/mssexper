@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Apply for Leave — MSS Expertise</title>
+<style>
+  :root{--accent:#f0b90b;--ok:#0a7a0a;--warn:#b26a00;--err:#c62828;--text:#101114;--muted:#666;--bg:#f6f7fb;--card:#fff;--border:#e7e9f0}
+  *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  header{position:sticky;top:0;z-index:10;background:#0d0d0d;color:#fff;border-bottom:1px solid #151515}
+  .container{max-width:900px;margin:0 auto;padding:0 16px}
+  .brand{display:flex;gap:10px;align-items:center;padding:12px 0}
+  .logo{font-weight:800;letter-spacing:1px;font-size:20px}
+  .right{margin-left:auto}
+  .navlink{color:#9cc3ff;text-decoration:none;font-weight:600}
+  main{max-width:900px;margin:18px auto;padding:0 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+  label{display:block;font-weight:600;margin-bottom:8px}
+  input,textarea,select{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:15px;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:#caa106}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .btn{padding:10px 14px;border-radius:10px;border:1px solid #23262f;background:#0e0f12;color:#fff;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#fff;color:#111;border-color:#222}
+  .msg{margin-top:8px;font-size:14px}.msg.ok{color:#0a7a0a}.msg.err{color:#c62828}
+  .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:700px}
+  th,td{border-bottom:1px solid #eef1f6;padding:10px;font-size:14px;text-align:left}
+  th{background:#fafafa;position:sticky;top:0}
+  @media (max-width:640px){ .btn, input, textarea, select{width:100%} .brand{flex-wrap:wrap} }
+</style>
+</head>
+<body>
+<header>
+  <div class="container brand">
+    <div class="logo">Apply for Leave</div>
+    <div class="right"><a class="navlink" href="./index.html">← Back to Attendance</a></div>
+  </div>
+</header>
+<main class="container">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="font-weight:800">Submit Request</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1;min-width:220px"><label>Employee ID</label><input id="empId" placeholder="E101"/></div>
+      <div style="flex:1;min-width:220px"><label>Type</label><select id="lvType"><option>Casual</option><option>Sick</option></select></div>
+      <div style="flex:1;min-width:220px"><label>Date (or Start)</label><input id="lvStart" type="date"/></div>
+      <div style="flex:1;min-width:220px"><label>End (optional)</label><input id="lvEnd" type="date"/></div>
+    </div>
+    <div class="row" style="margin-top:8px"><div style="flex:1"><label>Reason</label><input id="lvReason" placeholder="Optional"/></div></div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnSend" class="btn">Send</button>
+      <button id="btnLoad" class="btn secondary">Load My Requests</button>
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="font-weight:800">My Requests (latest 10, paginate)</div>
+      <div class="row"><button id="prev" class="btn secondary">Prev</button><button id="next" class="btn secondary">Next</button></div>
+    </div>
+    <div class="table-wrap" style="margin-top:10px">
+      <table id="lvTable"><thead><tr><th>Applied</th><th>Start</th><th>End</th><th>Days</th><th>Type</th><th>Status</th><th>Reason</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</main>
+<script type="module" src="./app.js"></script>
+<script type="module">
+import { ensureAnon, getEmployee, applyLeave, listLeaves } from './app.js';
+
+const $=s=>document.querySelector(s);
+let allRows=[]; let page=0; const pageSize=10; let currentId='';
+
+function daysBetweenInclusive(start,end){ const s=new Date(start+'T00:00:00'), e=new Date((end||start)+'T00:00:00'); return Math.floor((e-s)/86400000)+1; }
+function renderPage(){ const tbody=$('#lvTable tbody'); tbody.innerHTML=''; const st=page*pageSize, ed=Math.min(allRows.length,st+pageSize); allRows.slice(st,ed).forEach(x=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${String(x.appliedAt||'').toString().slice(0,10)}</td><td>${x.startDate}</td><td>${x.endDate||x.startDate}</td><td>${daysBetweenInclusive(x.startDate,x.endDate)}</td><td>${x.type}</td><td>${x.status}</td><td>${x.reason||''}</td>`; tbody.appendChild(tr); }); }
+async function refreshMy(){ if(!currentId) return; const rows=await listLeaves({}); allRows = rows.filter(r=>r.empId===currentId).sort((a,b)=> String(b.appliedAt||'').localeCompare(String(a.appliedAt||''))); page=0; renderPage(); }
+
+async function send(){ const msg=$('#msg'); try{ await ensureAnon(); const id=($('#empId').value||'').trim().toUpperCase(); if(!id) throw new Error('Employee ID required'); const emp=await getEmployee(id); if(!emp) throw new Error('Unknown ID'); if(emp.status!=='Active') throw new Error('Inactive employee'); const st=$('#lvStart').value; const ed=$('#lvEnd').value||$('#lvStart').value; const type=$('#lvType').value; const reason=$('#lvReason').value||''; if(!st) throw new Error('Date required'); const req={ id:'L'+Date.now(), empId:id, empName:emp.name||'', startDate:st, endDate:ed, type, reason, status:'Pending' }; await applyLeave(req); currentId=id; await refreshMy(); msg.className='msg ok'; msg.textContent='Sent.'; $('#lvReason').value=''; }catch(e){ msg.className='msg err'; msg.textContent=e?.message||'Failed'; }}
+
+async function load(){ const msg=$('#msg'); try{ const id=($('#empId').value||'').trim().toUpperCase(); if(!id) throw new Error('Employee ID required'); const emp=await getEmployee(id); if(!emp) throw new Error('Unknown ID'); currentId=id; await refreshMy(); msg.className='msg ok'; msg.textContent='Loaded.'; }catch(e){ msg.className='msg err'; msg.textContent=e?.message||'Failed'; }}
+
+$('#btnSend').addEventListener('click', send);
+$('#btnLoad').addEventListener('click', load);
+$('#prev').addEventListener('click', ()=>{ if(page>0){ page--; renderPage(); }});
+$('#next').addEventListener('click', ()=>{ if((page+1)*pageSize<allRows.length){ page++; renderPage(); }});
+
+await ensureAnon();
+</script>
+</body>
+</html>

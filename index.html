@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MSS Expertise — Attendance</title>
+<style>
+  :root{--accent:#f0b90b;--ok:#0a7a0a;--warn:#b26a00;--err:#c62828;--text:#101114;--muted:#666;--bg:#f6f7fb;--card:#fff;--border:#e7e9f0;--ring:0 0 0 3px rgba(240,185,11,.25)}
+  *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  header{position:sticky;top:0;z-index:10;background:radial-gradient(1800px 300px at 20% 0%,#111 0%,#000 60%,#000 100%);color:#fff;border-bottom:1px solid #151515}
+  .container{max-width:1100px;margin:0 auto;padding:0 16px}
+  .brand{display:flex;gap:14px;align-items:center;padding:14px 0}
+  .logo{font-weight:800;letter-spacing:1px;font-size:22px}
+  .tag{font-size:12px;color:#c7cbd4;border-left:3px solid var(--accent);padding-left:10px}
+  .right{margin-left:auto}
+  .navlink{color:#9cc3ff;text-decoration:none;font-weight:600}
+  main{max-width:1100px;margin:18px auto;padding:0 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+  label{display:block;font-weight:600;margin-bottom:8px}
+  input,textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:15px;outline:none}
+  input:focus,textarea:focus{box-shadow:var(--ring);border-color:#caa106}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .pill{padding:8px 12px;border-radius:999px;background:#0f1116;color:#fff;display:inline-flex;gap:8px;border:1px solid #1b1d24;font-size:12px}
+  .btn{padding:10px 14px;border-radius:10px;border:1px solid #23262f;background:#0e0f12;color:#fff;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#fff;color:#111;border-color:#222}
+  .msg{margin-top:8px;font-size:14px}.msg.ok{color:var(--ok)}.msg.warn{color:var(--warn)}.msg.err{color:var(--err)}
+  a.action{color:#0b61d6;text-decoration:none;font-weight:600}
+  @media (max-width:640px){
+    .brand{flex-wrap:wrap;gap:6px}
+    .right{margin-left:0}
+    .btn, input, textarea{width:100%}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="container brand">
+    <div class="logo">MSS EXPERTISE</div>
+    <div class="tag">Employee Attendance</div>
+    <div class="right"><a class="navlink" href="./admin.html">Admin Console →</a></div>
+  </div>
+</header>
+<main class="container">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:800;margin-bottom:8px">Give Attendance</div>
+        <div style="font-size:13px;color:#666">No login needed. Use your assigned Employee ID.</div>
+      </div>
+      <div><a class="action" href="./apply-leave.html">Apply for Leave →</a></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1;min-width:240px">
+        <label for="empId">Employee ID</label>
+        <input id="empId" type="text" placeholder="E101"/>
+        <div class="row" style="margin-top:8px">
+          <span id="nameView" class="pill">Name: —</span>
+          <span id="statusView" class="pill">Status: —</span>
+        </div>
+      </div>
+      <div style="flex:1;min-width:240px">
+        <label>Today</label>
+        <div class="row"><div>Date: <b id="todayDate">—</b></div><div>• Day: <b id="dayType">—</b></div></div>
+        <div style="margin-top:6px">Office: <b id="officeHoursLabel">—</b> • Late after <b id="lateAfterLbl">—</b></div>
+        <div style="margin-top:6px">Next Action: <b id="nextAction">—</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <div style="flex:1;min-width:240px">
+        <label>Late Reason (if IN after <span id="lateAfterLbl2">10:05</span>)</label>
+        <textarea id="lateReason" placeholder="Explain late arrival (if applicable)"></textarea>
+      </div>
+      <div style="flex:1;min-width:240px">
+        <label>Early OUT Reason (if before <span id="officeEndLbl">18:00</span>)</label>
+        <textarea id="earlyReason" placeholder="Explain early OUT (if applicable)"></textarea>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="submitBtn" class="btn" disabled>Submit</button>
+      <div id="empMsg" class="msg"></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="./app.js"></script>
+<script type="module">
+import { ensureAnon, getConfig, ymd, hhmm, minutesFromHHMM, deviceFingerprint, getEmployee, getAttendance, saveAttendanceRow, setEmployeeDevice, toast } from './app.js';
+
+const $=s=>document.querySelector(s);
+let CFG={ officeStart:'10:00', lateAfter:'10:05', officeEnd:'18:00', earlyGraceMin:0, weekendDow:5 };
+
+function toggleLateReasonUI(){
+  const now = hhmm(new Date());
+  const enable = minutesFromHHMM(now) > minutesFromHHMM(CFG.lateAfter);
+  const lr = $('#lateReason'); lr.disabled = !enable; if(!enable) lr.value='';
+}
+
+async function setHeader(){
+  CFG = await getConfig();
+  $('#todayDate').textContent=ymd();
+  $('#officeHoursLabel').textContent=`${CFG.officeStart}–${CFG.officeEnd}`;
+  $('#lateAfterLbl').textContent=CFG.lateAfter; $('#lateAfterLbl2').textContent=CFG.lateAfter;
+  $('#officeEndLbl').textContent=CFG.officeEnd;
+  $('#dayType').textContent=(new Date().getDay()===CFG.weekendDow)?'Weekend (Friday)':'Working';
+  toggleLateReasonUI();
+}
+
+async function onEmpIdInput(){
+  const id=($('#empId').value||'').trim().toUpperCase();
+  if(!id){ $('#nameView').textContent='Name: —'; $('#statusView').textContent='Status: —'; $('#nextAction').textContent='—'; $('#submitBtn').disabled=true; return; }
+  const emp=await getEmployee(id);
+  if(!emp){ $('#nameView').textContent='Name: (not found)'; $('#statusView').textContent='Status: —'; $('#nextAction').textContent='—'; $('#submitBtn').disabled=true; return; }
+  $('#nameView').textContent=`Name: ${emp.name||''}`; $('#statusView').textContent=`Status: ${emp.status||''}`;
+  const date=ymd(); const att=await getAttendance(date,id);
+  let next='IN'; if(att?.in && !att?.out) next='OUT'; else if(att?.in && att?.out) next='Done';
+  $('#nextAction').textContent=next;
+  const fp=deviceFingerprint(); const can=(emp.status==='Active' && (!emp.deviceId||emp.deviceId===fp) && next!=='Done');
+  $('#submitBtn').disabled=!can;
+}
+
+async function submitAttendance(){
+  const msg=$('#empMsg');
+  try{
+    await ensureAnon();
+    const id=$('#empId').value.trim().toUpperCase();
+    const emp=await getEmployee(id); if(!emp) return toast(msg,'Unknown employee','err');
+    if(emp.status!=='Active') return toast(msg,'Inactive employee','err');
+    const fp=deviceFingerprint(); if(emp.deviceId && emp.deviceId!==fp) return toast(msg,'Bound to another device','err');
+
+    const date=ymd(); const time=hhmm(); const mins=minutesFromHHMM(time);
+    const working=(new Date().getDay()!==CFG.weekendDow);
+    const att=(await getAttendance(date,id)) || { date, employeeId:id, name:emp.name||'' };
+
+    let action=''; if(!att.in) action='IN'; else if(!att.out) action='OUT'; else return toast(msg,'Already done IN & OUT today','warn');
+
+    if(action==='IN'){
+      if(working && mins>minutesFromHHMM(CFG.lateAfter)){
+        const lr=($('#lateReason').value||'').trim(); if(!lr) return toast(msg,'Late IN requires a reason','err'); att.isLate=true; att.lateReason=lr; }
+      else att.isLate=false;
+      att.in=time; toast(msg, att.isLate?`IN (LATE) at ${time}`:`IN at ${time}`,'ok');
+    } else {
+      if(working){
+        const threshold=minutesFromHHMM(CFG.officeEnd)-(Number(CFG.earlyGraceMin)||0);
+        if(mins<threshold){ const er=($('#earlyReason').value||'').trim(); if(!er) return toast(msg,'Early OUT requires a reason','err'); att.isEarly=true; att.earlyReason=er; }
+        else att.isEarly=false;
+      } else att.isEarly=false;
+      att.out=time; toast(msg, att.isEarly?`OUT (EARLY) at ${time}`:`OUT at ${time}`,'ok');
+    }
+
+    await saveAttendanceRow(date,id,att);
+    if(!emp.deviceId){ await setEmployeeDevice(id, fp); toast(msg,'Device bound','ok'); }
+    $('#lateReason').value=''; $('#earlyReason').value='';
+    await onEmpIdInput();
+  }catch(e){ console.error(e); toast($('#empMsg'), e?.message||'Submit failed','err'); }
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  await setHeader(); await ensureAnon();
+  $('#empId').addEventListener('input', onEmpIdInput);
+  $('#submitBtn').addEventListener('click', submitAttendance);
+  setInterval(toggleLateReasonUI, 30000);
+});
+</script>
+</body>
+</html>
